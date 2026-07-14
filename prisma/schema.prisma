@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum GameStatus {
+  SCHEDULED
+  FINISHED
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  name              String?
+  image             String?
+  role              Role     @default(USER)
+
+  // 마인크래프트 연동 정보 - 로그인은 MS 계정으로 하되 화면엔 이걸 노출
+  minecraftUuid     String?  @unique
+  minecraftNickname String?
+
+  teamId            String?
+  team              Team?    @relation(fields: [teamId], references: [id])
+
+  reviews           Review[]
+  predictions       Prediction[]
+
+  createdAt         DateTime @default(now())
+
+  accounts Account[]
+  sessions Session[]
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  wins      Int      @default(0)
+  losses    Int      @default(0)
+  ties      Int      @default(0)
+
+  players   User[]
+  homeGames Game[]   @relation("home")
+  awayGames Game[]   @relation("away")
+
+  createdAt DateTime @default(now())
+}
+
+model Game {
+  id          String     @id @default(cuid())
+  homeTeamId  String
+  awayTeamId  String
+  homeTeam    Team       @relation("home", fields: [homeTeamId], references: [id])
+  awayTeam    Team       @relation("away", fields: [awayTeamId], references: [id])
+  homeScore   Int?
+  awayScore   Int?
+  playedAt    DateTime
+  status      GameStatus @default(SCHEDULED)
+
+  predictions Prediction[]
+  reviews     Review[]
+
+  createdAt   DateTime   @default(now())
+}
+
+model Prediction {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  gameId            String
+  game              Game     @relation(fields: [gameId], references: [id])
+  predictedWinnerId String
+  createdAt         DateTime @default(now())
+
+  @@unique([userId, gameId])
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  gameId    String?
+  game      Game?    @relation(fields: [gameId], references: [id])
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+}
+
+// ---- NextAuth 필수 모델 ----
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
