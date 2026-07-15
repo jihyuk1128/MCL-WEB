@@ -23,6 +23,7 @@ model User {
   email             String   @unique
   name              String?
   image             String?
+emailVerified     DateTime?
   role              Role     @default(USER)
 
   // 마인크래프트 연동 정보 - 로그인은 MS 계정으로 하되 화면엔 이걸 노출
